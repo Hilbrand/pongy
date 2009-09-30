@@ -37,18 +37,10 @@ import com.google.gwt.gadgets.client.UserPreferences;
 import com.google.gwt.user.client.Random;
 import com.google.gwt.user.client.Timer;
 
-//FIXME: vertraag bal loser bij startup, na [s] command
-//FIXME: Toon nieuwe punten eerder: bij message "waitin" en niet bij start bal.
+//FIXME: ball seem not to halt correctly at player side
+//FIXME: related, ball seems to hang sometimes at one player, that looses than, when moving. 
 
-//TODO: Help tekst aanpassen
-
-//http://test.cobogw.org/Pongy.gadget.xml
-/**
- * Entry point classes define <code>onModuleLoad()</code>. TODO check for view
- * mode?
- */
-  //, description = "Play Pong in Google Wave with Pongy", scaling = true, height = 400, author = "Hilbrand Bouwkamp", author_email="hs@bouwkamp.com")
-@Gadget.ModulePrefs(title = "Pongy", height = 400)
+@Gadget.ModulePrefs(title = "Pongy", description = "Play Pong in Google Wave with Pongy", height = 400, author = "Hilbrand Bouwkamp", author_email="hs@bouwkamp.com")
 public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 
   public static enum PLAYER {
