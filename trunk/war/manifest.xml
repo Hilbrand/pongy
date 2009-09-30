@@ -1,0 +1,11 @@
+<extension 
+    name="Pongy"
+    description="Play Pong with Pongy"
+    thumbnailUrl="http://playpongy.appspot.com/preview.png"> 
+  <author name="Hilbrand Bouwkamp" /> 
+  <menuHook
+      location="TOOLBAR" text="Insert the Pongy gadget."
+      iconUrl="http://playpongy.appspot.com/icon.png"> 
+    <insertGadget url="http://playpongy.appspot.com/pongy/org.cobogw.pongy.client.Pongy.gadget.xml" /> 
+  </menuHook> 
+</extension> 
