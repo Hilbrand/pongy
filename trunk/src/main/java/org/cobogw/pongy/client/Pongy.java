@@ -154,9 +154,9 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
             if (!thisPlayer.isKeyDown()
                 && lastTopY != thisPlayer.getBar().getTopY()) {
               lastTopY = thisPlayer.getBar().getTopY();
-              delta.put(thisPlayer.getPosYKey(), "" + lastTopY);
+              setStateDelta(thisPlayer.getPosYKey(), "" + lastTopY);
               if (!wave.isPlayback()) {
-                state.submitDelta(delta);
+                submitStateDelta();
               }
             }
             // Handle other player state
@@ -334,12 +334,13 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
       }
       // player1 (left player)
       if (stopBallLeft && playerLeft == thisPlayer) {
+        setStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, BALL_WAIT);
+        stopBallLeft = false;
         if (ball.getBottomY() < playerLeft.getBar().getTopY()
             || ball.getTopY() > playerLeft.getBar().getBottomY()) {
           matchOver(PLAYER.PLAYER_RIGHT); // right wins
         } else {
-          stopBallLeft = false;
-          submitStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, BALL_WAIT);
+          submitStateDelta();
         }
       }
     } else {
@@ -351,15 +352,14 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
       }
       // player2 (right player)
       if (stopBallRight && playerRight == thisPlayer) {
+        setStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, BALL_WAIT);
+        stopBallRight = false;
         if (ball.getBottomY() < playerRight.getBar().getTopY()
             || ball.getTopY() > playerRight.getBar().getBottomY()) {
           matchOver(PLAYER.PLAYER_LEFT); //left wins
         } else {
-          stopBallRight = false;
-          submitStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, BALL_WAIT);
+          submitStateDelta();
         }
-//      } else {
-//        stopBallRight = false;
       }
     } else {
       stopBallRight = true;
@@ -387,7 +387,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   }
 
   private void increasePoints(STATE_KEYS playerPoints) {
-    delta.put(playerPoints.toString(), String.valueOf(
+    setStateDelta(playerPoints.toString(), String.valueOf(
         Integer.parseInt(getGameState(playerPoints, "0")) + 1));
   }
 
@@ -405,8 +405,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
       if (idLeft == null) {
         idLeft = wave.getHost().getId();
         if (idLeft.equals(thisParticipant.getId())) {
-          delta.put(PLAYER.PLAYER_LEFT.toString(), "" + idLeft);
-          state.submitDelta(delta);
+          setStateDelta(PLAYER.PLAYER_LEFT.toString(), "" + idLeft);
+          submitStateDelta();
         }
       }
       final boolean thisPlayerLeftPlayer = idLeft.equals(thisParticipant.getId());
@@ -421,8 +421,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
           idRight = idLeft.equals(participants.get(0).getId()) ?
               participants.get(1).getId() : participants.get(0).getId();
           if (!thisPlayerLeftPlayer) {
-            delta.put(PLAYER.PLAYER_RIGHT.toString(), "" + idRight);
-            state.submitDelta(delta);
+            setStateDelta(PLAYER.PLAYER_RIGHT.toString(), "" + idRight);
+            submitStateDelta();
           }
         }
         initRightPlayer(wave.getParticipantById(idRight), !thisPlayerLeftPlayer);
@@ -496,8 +496,19 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
         getGameState(STATE_KEYS.PLAYER_RIGHT_POINTS, "0"));
   }
 
+  private void setStateDelta(String key, String value) {
+    delta.put(key, value);
+  }
+
   private void setStateDelta(STATE_KEYS key, String value) {
-    delta.put(key.toString(), value);
+    setStateDelta(key.toString(), value);
+  }
+
+  private void submitStateDelta() {
+    if (!wave.isPlayback() && state != null) {
+      state.submitDelta(delta);
+      delta.clear();
+    }
   }
 
   private void submitStateDelta(STATE_KEYS key, GAME_STATE value) {
@@ -506,9 +517,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 
   private void submitStateDelta(STATE_KEYS key, String value) {
     if (!wave.isPlayback() && state != null) {
-      delta.put(key.toString(), value);
-      state.submitDelta(delta);
-      delta.clear();
+      setStateDelta(key, value);
+      submitStateDelta();
     }
   }
 
