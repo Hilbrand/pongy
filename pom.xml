@@ -3,7 +3,7 @@
   <groupId>org.cobogw.pongy</groupId>
   <artifactId>pongy</artifactId>
   <packaging>jar</packaging>
-  <version>0.1-SNAPSHOT</version>
+  <version>1.0</version>
 
   <licenses>
     <license>
@@ -26,11 +26,11 @@
     </developer>
   </developers>
 
-   <issueManagement>
-       <system>Google Code</system>
-       <url>http://code.google.com/p/pongy/issues</url>
-   </issueManagement>
-   
+  <issueManagement>
+    <system>Google Code</system>
+    <url>http://code.google.com/p/pongy/issues</url>
+  </issueManagement>
+
   <properties>
     <gwt.version>1.7</gwt.version>
     <gwt.platform>windows</gwt.platform>
@@ -61,7 +61,7 @@
 	 <dependency>
 	    <groupId>org.cobogw.gwt.wave-api</groupId>
 	    <artifactId>cobogwave-gadget</artifactId>
-	    <version>1.0.3.1</version>
+	    <version>1.0.3.2</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.gwt</groupId>

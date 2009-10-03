@@ -57,9 +57,10 @@ public class Ball extends HTML {
    *          if true direction y is 1, else -1
    */
   public void start(PLAYER lastWinner, boolean direction) {
-    posx = PLAYER.PLAYER_LEFT.equals(lastWinner) ? bwidth : wwidth - bwidth;
+    final boolean lw = PLAYER.PLAYER_LEFT.equals(lastWinner);
+    posx =  lw ? (bwidth+1) : wwidth - (bwidth+1);
     posy = wheight / 2;
-    dirx = PLAYER.PLAYER_LEFT.equals(lastWinner) ? 1 : -1;
+    dirx = lw ? 1 : -1;
     diry = direction ? 1 : -1;
     timeelapse = startimeelapse;
     speed = calcSpeed(timeelapse);

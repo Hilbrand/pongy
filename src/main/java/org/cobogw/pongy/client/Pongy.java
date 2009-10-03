@@ -37,9 +37,6 @@ import com.google.gwt.gadgets.client.UserPreferences;
 import com.google.gwt.user.client.Random;
 import com.google.gwt.user.client.Timer;
 
-//FIXME: ball seem not to halt correctly at player side
-//FIXME: related, ball seems to hang sometimes at one player, that looses than, when moving. 
-
 @Gadget.ModulePrefs(title = "Pongy", description = "Play Pong in Google Wave with Pongy", height = 400, author = "Hilbrand Bouwkamp", author_email="hs@bouwkamp.com")
 public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 
@@ -53,7 +50,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 
   public static enum STATE_KEYS {
     PLAYER_LEFT_POSY, PLAYER_RIGHT_POSY, PLAYER_LEFT_READY, PLAYER_RIGHT_READY,
-    LAST_WINNER, BALL_START, BALL_WAIT, PLAYER_LEFT_POINTS, PLAYER_RIGHT_POINTS, GAME_STATE;
+    LAST_WINNER, BALL_START, BALL_WAIT_LEFT_PLAYER, BALL_WAIT_RIGHT_PLAYER,
+    PLAYER_LEFT_POINTS, PLAYER_RIGHT_POINTS, GAME_STATE;
 
     public boolean equals(String anObject) {
       return this.toString().equals(anObject);
@@ -68,8 +66,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
     }
   }
 
-  private static String BALL_WAIT_LEFT = "WL";
-  private static String BALL_WAIT_RIGHT = "WR";
+  private static String BALL_WAIT = "W";
 
   private final static String instructionsText = "Instructions:<br><br>"
       + "[A] Move up<br>"
@@ -81,10 +78,15 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 //  private final static String textPause = "Press [P] to resume the game";
   private final static String textInviteSomeone =
       "Invite someone to play a game with";
+//HSB: TESTING
+//  private final static String textInviteSomeone =
+//    "Sorry this game is under construction, try again later...";
   private final static String textWaitingForBothPlayers =
       "Waiting for both players to press [S] to start the game.";
   private final static String texWaitingForOtherPlayer =
       "Waiting for other player to press [S]";
+//  private final static String texWaitingForThisPlayer =
+//    "Hey Mate! {1} is waiting for you to hit [S]";
 
   private final int width = 520;
   private final int height = 400;
@@ -113,12 +115,12 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 
   // Wave interaction
   private WaveFeature wave;
+  private State state;
   private HashMap<String, String> delta = new HashMap<String, String>();
   private Participant thisParticipant;
+  private boolean stopBallLeft;
+  private boolean stopBallRight;
 
-  /**
-   * This is the entry point method.
-   */
   public Pongy() {
     view = new PongyViewImpl(width, height);
     ball = new Ball(height, width, barwidth, ballheight);
@@ -146,7 +148,6 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
       public void run() {
         if (wave != null) {
           final String gstate = getGameState(STATE_KEYS.GAME_STATE);
-          final State state = wave.getState();
 
           if (state != null && GAME_STATE.ON.equals(gstate)) {
             // Handle this player state
@@ -173,9 +174,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 
   public void initializeFeature(WaveFeature feature) {
     wave = feature;
-  }
+    state = wave.getState();
 
-  protected void init(UserPreferences preferences) {
     view.addKeyDownHandler(new KeyDownHandler() {
       public void onKeyDown(KeyDownEvent event) {
         if (wave == null || wave.isPlayback()) {
@@ -218,15 +218,14 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
     });
     wave.addParticipantUpdateEventHandler(new ParticipantUpdateEventHandler() {
       public void onUpdate(ParticipantUpdateEvent event) {
-        if (wave != null && thisParticipant == null) {
-          thisParticipant = wave.getViewer();
-        }
         initParticipants();
       }
     });
     wave.addStateUpdateEventHandler(new StateUpdateEventHandler() {
-
       public void onUpdate(StateUpdateEvent event) {
+        if (state == null) {
+          state = wave.getState();
+        }
         final String gs = getGameState(STATE_KEYS.GAME_STATE, GAME_STATE.NEW);
 
         switch (GAME_STATE.valueOf(gs)) {
@@ -260,13 +259,18 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
             newMatch();
           }
           // game in progress
-          // handle bar position of opponent
-          view.debug("ball state:" + getGameState(STATE_KEYS.BALL_WAIT, "unknown"));
-          if ((playerLeft == thisPlayer && BALL_WAIT_LEFT.equals(getGameState(STATE_KEYS.BALL_WAIT, ""))) ||
-              (playerRight == thisPlayer && BALL_WAIT_RIGHT.equals(getGameState(STATE_KEYS.BALL_WAIT, "")))) {
-            submitStateDelta(STATE_KEYS.BALL_WAIT, "");
+          final String bwl = getGameState(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
+          final String bwr = getGameState(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
+
+          if (playerLeft == thisPlayer && BALL_WAIT.equals(bwl)) {
+            stopBallRight = false;   
+            submitStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
           }
-          if ("".equals(getGameState(STATE_KEYS.BALL_WAIT, ""))) {
+          if (playerRight == thisPlayer && BALL_WAIT.equals(bwr)) {
+            stopBallLeft = false;
+            submitStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
+          }
+          if ("".equals(bwl) && "".equals(bwr)) {
             ball.resumeBall();
           }
           break;
@@ -303,6 +307,9 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
     });
   }
 
+  protected void init(UserPreferences preferences) {
+  }
+
 //  private void togglePauze() {
 //    pauze = !pauze;
 //    if (pauze) {
@@ -322,27 +329,40 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
    */
   private void detectCollision() {
     if (ball.atLeftBorder()) {
-      ball.waitBall();
+      if (stopBallLeft) {
+        ball.waitBall();
+      }
       // player1 (left player)
-      if (playerLeft == thisPlayer) {
+      if (stopBallLeft && playerLeft == thisPlayer) {
         if (ball.getBottomY() < playerLeft.getBar().getTopY()
             || ball.getTopY() > playerLeft.getBar().getBottomY()) {
-          matchOver(PLAYER.PLAYER_RIGHT);
+          matchOver(PLAYER.PLAYER_RIGHT); // right wins
         } else {
-          submitStateDelta(STATE_KEYS.BALL_WAIT, BALL_WAIT_RIGHT);
+          stopBallLeft = false;
+          submitStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, BALL_WAIT);
         }
       }
-    } else if (ball.atRightBorder()) {
-      ball.waitBall();
+    } else {
+      stopBallLeft = true;
+    }
+    if (ball.atRightBorder()) {
+      if (stopBallRight) {
+        ball.waitBall();
+      }
       // player2 (right player)
-      if (playerRight == thisPlayer) {
+      if (stopBallRight && playerRight == thisPlayer) {
         if (ball.getBottomY() < playerRight.getBar().getTopY()
             || ball.getTopY() > playerRight.getBar().getBottomY()) {
-          matchOver(PLAYER.PLAYER_LEFT);
+          matchOver(PLAYER.PLAYER_LEFT); //left wins
         } else {
-          submitStateDelta(STATE_KEYS.BALL_WAIT, BALL_WAIT_LEFT);
+          stopBallRight = false;
+          submitStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, BALL_WAIT);
         }
+//      } else {
+//        stopBallRight = false;
       }
+    } else {
+      stopBallRight = true;
     }
   }
 
@@ -355,8 +375,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   }
 
   private String getGameState(STATE_KEYS key, String defaultValue) {
-    final State s = wave.getState();
-    final String value = s != null ? s.get(key.toString(), null) : null;
+    final String value = state != null ? state.get(key.toString(), null) : null;
 
     return value == null ? defaultValue : value;
   }
@@ -373,44 +392,69 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   }
 
   private void initParticipants() {
-    final JsArray<Participant> participants = wave.getParticipants();
-    if (participants.length() > 0) {
-      if (thisPlayer == null) {
-        final String name = participants.get(0).getDisplayName();
-        final String url = participants.get(0).getThumbnailUrl();
-
-        if (thisParticipant.getId().equals(wave.getHost().getId())) {
-          thisPlayer = playerLeft;
-          view.setPlayerNameLeft(url, name);
-        } else {
-          thisPlayer = playerRight;
-          view.setPlayerNameRight(url, name);
-        }
-        thisPlayer.setPlayerName(name);
-      }
+    if (wave != null && thisParticipant == null) {
+      thisParticipant = wave.getViewer();
     }
-    if (participants.length() > 1) {
-      if (otherPlayer == null) {
-        final String name = participants.get(1).getDisplayName();
-        final String url = participants.get(1).getThumbnailUrl();
+    if (wave == null || state == null) {
+      return;
+    }
+    if (thisPlayer == null || otherPlayer == null) {
+      final JsArray<Participant> participants = wave.getParticipants();
+      String idLeft = state.get(PLAYER.PLAYER_LEFT.toString());
 
-        if (thisParticipant.getId().equals(wave.getHost().getId())) {
-          otherPlayer = playerRight;
-          view.setPlayerNameRight(url, name);
-        } else {
-          otherPlayer = playerLeft;
-          view.setPlayerNameLeft(url, name);
+      if (idLeft == null) {
+        idLeft = wave.getHost().getId();
+        if (idLeft.equals(thisParticipant.getId())) {
+          delta.put(PLAYER.PLAYER_LEFT.toString(), "" + idLeft);
+          state.submitDelta(delta);
         }
-        otherPlayer.setPlayerName(name);
+      }
+      final boolean thisPlayerLeftPlayer = idLeft.equals(thisParticipant.getId());
+
+      initLeftPlayer(wave.getParticipantById(idLeft), thisPlayerLeftPlayer);
+      // we have 2 players...
+      if (participants.length() > 1) {
+        String idRight = state != null ? state.get(PLAYER.PLAYER_RIGHT.toString()) : null;
+
+        if (idRight == null) {
+          //right is not the left...
+          idRight = idLeft.equals(participants.get(0).getId()) ?
+              participants.get(1).getId() : participants.get(0).getId();
+          if (!thisPlayerLeftPlayer) {
+            delta.put(PLAYER.PLAYER_RIGHT.toString(), "" + idRight);
+            state.submitDelta(delta);
+          }
+        }
+        initRightPlayer(wave.getParticipantById(idRight), !thisPlayerLeftPlayer);
         showPoints();
-      }
-      submitStateOnlyLeftDelta(STATE_KEYS.GAME_STATE, GAME_STATE.NEW_MATCH);
-    } else {
-      // waiting for players...
-      if (!GAME_STATE.INIT.equals(getGameState(STATE_KEYS.GAME_STATE))) {
-        submitStateDelta(STATE_KEYS.GAME_STATE, GAME_STATE.INIT);
+        if (getGameState(STATE_KEYS.GAME_STATE) == null
+            || GAME_STATE.INIT.equals(getGameState(STATE_KEYS.GAME_STATE))) {
+          submitStateOnlyLeftDelta(STATE_KEYS.GAME_STATE, GAME_STATE.NEW_MATCH);
+        }
+      } else if (!GAME_STATE.INIT.equals(getGameState(STATE_KEYS.GAME_STATE))) {
+        submitStateOnlyLeftDelta(STATE_KEYS.GAME_STATE, GAME_STATE.INIT);
       }
     }
+  }
+
+  private void initLeftPlayer(Participant p, boolean amILeftPlayer) {
+    if (amILeftPlayer) {
+      thisPlayer = playerLeft;
+    } else {
+      otherPlayer = playerLeft;
+    }
+    view.setPlayerNameLeft(p.getThumbnailUrl(), p.getDisplayName());
+    playerLeft.setPlayerName(p.getDisplayName());
+  }
+
+  private void initRightPlayer(Participant p, boolean amIRightPlayer) {
+    if (amIRightPlayer) {
+      thisPlayer = playerRight;
+    } else {
+      otherPlayer = playerRight;
+    }
+    view.setPlayerNameRight(p.getThumbnailUrl(), p.getDisplayName());
+    playerRight.setPlayerName(p.getDisplayName());
   }
 
   /**
@@ -434,6 +478,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   private void newMatch() {
     showPoints();
     ball.setVisible(true);
+    stopBallLeft = true;
+    stopBallRight = true;
     thisPlayer.start();
     final String balStart = getGameState(STATE_KEYS.BALL_START);
 
@@ -459,11 +505,9 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   }
 
   private void submitStateDelta(STATE_KEYS key, String value) {
-    final State s = wave.getState();
-
-    if (!wave.isPlayback() && s != null) {
+    if (!wave.isPlayback() && state != null) {
       delta.put(key.toString(), value);
-      s.submitDelta(delta);
+      state.submitDelta(delta);
       delta.clear();
     }
   }

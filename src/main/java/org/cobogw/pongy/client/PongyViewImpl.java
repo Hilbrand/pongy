@@ -26,12 +26,11 @@ import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FocusPanel;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Image;
-import com.google.gwt.user.client.ui.InlineHTML;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.RootPanel;
 
 /**
- * View implementation. 
+ * View implementation.
  */
 public class PongyViewImpl extends Composite implements PongyView {
   private final Image playerLeftWidget;
@@ -69,8 +68,8 @@ public class PongyViewImpl extends Composite implements PongyView {
     instructions = new HTML();
     instructions.setStyleName("instruct");
     fp.add(instructions);
-    copy.setStyleName("copy");
-    fp.add(copy);
+    //copy.setStyleName("copy");
+    //fp.add(copy);
     fp.add(playerLeftWidget);
     fp.add(playerRightWidget);
     setStylePlayerName(playerLeftWidget, CSS.A.RIGHT);
@@ -97,7 +96,7 @@ public class PongyViewImpl extends Composite implements PongyView {
     CSS.setProperty(fop, CSS.A.BACKGROUND_COLOR, Color.BLACK);
     RootPanel.get().add(fop);
   }
-  
+
   public void debug(String text) {
 //    if (text != null && !"".equals(text)) {
 //      RootPanel.get().add(new InlineHTML(text +", "));
@@ -115,7 +114,7 @@ public class PongyViewImpl extends Composite implements PongyView {
   public void setBall(Ball ball) {
     fp.add(ball);
   }
-  
+
   public void setBarPlayerLeft(Bar bar) {
     fp.add(bar);
   }
@@ -129,26 +128,26 @@ public class PongyViewImpl extends Composite implements PongyView {
     playerLeftWidget.setUrl(imgUrl);
     playerLeftWidget.setTitle(name);
   };
-  
+
   public void setPlayerNameRight(String imgUrl, String name) {
     playerRightWidget.setVisible(true);
     playerRightWidget.setUrl(imgUrl);
     playerRightWidget.setTitle(name);
   }
-  
+
   public void setLineVisible(boolean visible) {
     instructions.setVisible(false);
     singleLine.setVisible(false);
     winner.setVisible(false);
     line.setVisible(visible);
   }
-  
+
   public void showGame(String pointsPlayerLeft, String pointsPlayerRight) {
     setLineVisible(true);
     pointsPlayerLeftWidget.setText(pointsPlayerLeft);
     pointsPlayerRightWidget.setText(pointsPlayerRight);
   }
-  
+
   public void showInstructions(String text) {
     setLineVisible(false);
     instructions.setHTML(text);
@@ -166,7 +165,7 @@ public class PongyViewImpl extends Composite implements PongyView {
     winner.setText(text);
     winner.setVisible(true);
   }
-  
+
   private void setStylePlayerName(Image score, String ori) {
     score.setStyleName("playerName");
     score.getElement().getStyle().setPropertyPx(ori, width / 2 + 100);
