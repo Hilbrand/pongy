@@ -85,8 +85,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
       "Waiting for both players to press [S] to start the game.";
   private final static String texWaitingForOtherPlayer =
       "Waiting for other player to press [S]";
-//  private final static String texWaitingForThisPlayer =
-//    "Hey Mate! {1} is waiting for you to hit [S]";
+  private final static String texWaitingForThisPlayer =
+      "The other player is waiting for you to hit [S]";
 
   private final int width = 520;
   private final int height = 400;
@@ -110,8 +110,10 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   private final int gamespeed = 20;
   private final int winnertimeout = 3000;
   private PLAYER lastwinner;
-  protected boolean pauze = false;
+  //private boolean pauze = false;
   private boolean matchStarted = false;
+  private String lastWLPStatus;
+  private String lastWRPStatus;
 
   // Wave interaction
   private WaveFeature wave;
@@ -120,6 +122,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   private Participant thisParticipant;
   private boolean stopBallLeft;
   private boolean stopBallRight;
+
 
   public Pongy() {
     view = new PongyViewImpl(width, height);
@@ -135,11 +138,13 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
     runner = new Timer() {
       @Override
       public void run() {
-        ball.move();
-        if (thisPlayer != null) {
-          thisPlayer.move();
+        if (!detectCollision()) {
+          ball.move();
+          if (thisPlayer != null) {
+            thisPlayer.move();
+          }
+          handleBallSync();
         }
-        detectCollision();
       }
     };
     playerTimer = new Timer() {
@@ -191,11 +196,8 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
 //        } else
         if ('S' == keyCode
             && GAME_STATE.NEW_MATCH.equals(getGameState(STATE_KEYS.GAME_STATE))) {
-          view.showSingleLine(texWaitingForOtherPlayer);
           if (playerLeft == thisPlayer) {
             setStateDelta(STATE_KEYS.PLAYER_LEFT_READY, "1");
-            setStateDelta(STATE_KEYS.BALL_START, String.valueOf(Random
-                .nextInt(1000) > 500));
             submitStateDelta(STATE_KEYS.GAME_STATE, GAME_STATE.NEW_MATCH);
           } else {
             submitStateDelta(STATE_KEYS.PLAYER_RIGHT_READY, "1");
@@ -235,44 +237,49 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
           view.showSingleLine(textInviteSomeone);
           break;
         case NEW_MATCH:
-          if ((thisPlayer == playerLeft
-              && getGameState(STATE_KEYS.PLAYER_LEFT_READY) == null)
-             || (thisPlayer == playerRight
-              && getGameState(STATE_KEYS.PLAYER_RIGHT_READY) == null)) {
-            if ("0".equals(getGameState(STATE_KEYS.PLAYER_LEFT_POINTS, "0")) &&
-                "0".equals(getGameState(STATE_KEYS.PLAYER_RIGHT_POINTS, "0"))) {
-              view.showInstructions(instructionsText);
-            } else {
-              view.showSingleLine(textWaitingForBothPlayers);
-            }
-          }
-          if (thisPlayer == playerLeft
-              && getGameState(STATE_KEYS.PLAYER_LEFT_READY) != null
-              && getGameState(STATE_KEYS.PLAYER_RIGHT_READY) != null) {
+          final boolean thisPlayerReady =
+              (thisPlayer == playerLeft &&
+                  getGameState(STATE_KEYS.PLAYER_LEFT_READY) != null) ||
+              (thisPlayer == playerRight &&
+                  getGameState(STATE_KEYS.PLAYER_RIGHT_READY) != null);        
+          final boolean otherPlayerReady =
+            (otherPlayer == playerLeft &&
+                getGameState(STATE_KEYS.PLAYER_LEFT_READY) != null) ||
+            (otherPlayer == playerRight &&
+               getGameState(STATE_KEYS.PLAYER_RIGHT_READY) != null);        
+          
+          if (thisPlayerReady && otherPlayerReady) {
             setStateDelta(STATE_KEYS.PLAYER_LEFT_READY, (String) null);
             setStateDelta(STATE_KEYS.PLAYER_RIGHT_READY, (String) null);
-            submitStateDelta(STATE_KEYS.GAME_STATE, GAME_STATE.ON);
+            setStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
+            setStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
+            setStateDelta(STATE_KEYS.BALL_START, String.valueOf(Random
+                .nextInt(1000) > 500));
+            submitStateOnlyLeftDelta(STATE_KEYS.GAME_STATE, GAME_STATE.ON);
+          } else if (thisPlayerReady) {
+            view.showSingleLine(texWaitingForOtherPlayer);
+          } else if (otherPlayerReady) {
+            view.showSingleLine(texWaitingForThisPlayer);
+          } else if ("0".equals(getGameState(STATE_KEYS.PLAYER_LEFT_POINTS, "0")) &&
+                "0".equals(getGameState(STATE_KEYS.PLAYER_RIGHT_POINTS, "0"))) {
+            view.showInstructions(instructionsText);
+          } else {
+            view.showSingleLine(textWaitingForBothPlayers);
           }
           break;
         case ON:
           if (!matchStarted) {
             newMatch();
           }
-          // game in progress
           final String bwl = getGameState(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
           final String bwr = getGameState(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
-
-          if (playerLeft == thisPlayer && BALL_WAIT.equals(bwl)) {
-            stopBallRight = false;   
-            submitStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
-          }
-          if (playerRight == thisPlayer && BALL_WAIT.equals(bwr)) {
-            stopBallLeft = false;
-            submitStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
-          }
-          if ("".equals(bwl) && "".equals(bwr)) {
+          
+          if ("".equals(bwl) && "".equals(bwr) &&
+              (!bwl.equals(lastWLPStatus) ||!bwl.equals(lastWRPStatus))) {
             ball.resumeBall();
           }
+          lastWLPStatus = bwl;
+          lastWRPStatus = bwr;
           break;
 //        case PAUZE:
 //           TODO implement pause
@@ -282,10 +289,10 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
         case END:
           matchStarted = false;
           showPoints();
+          ball.setVisible(false);
           lastwinner = PLAYER.PLAYER_LEFT.equals(getGameState(STATE_KEYS.LAST_WINNER))
               ? PLAYER.PLAYER_LEFT : PLAYER.PLAYER_RIGHT;
           // Game ended, update score and send game on after timeout.
-          view.debug("lastwinner:" + lastwinner);
           final boolean youWin =
               (PLAYER.PLAYER_LEFT.equals(lastwinner) && playerLeft == thisPlayer) ||
               (PLAYER.PLAYER_RIGHT.equals(lastwinner) && playerRight == thisPlayer);
@@ -326,8 +333,12 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
   /**
    * Detect if the player missed the ball, only the player itself can report is
    * has missed the ball, this to avoid collision detection.
+   *
+   * @return returns true if the game is over
    */
-  private void detectCollision() {
+  private boolean detectCollision() {
+    boolean gameOver = false;
+
     if (ball.atLeftBorder()) {
       if (stopBallLeft) {
         ball.waitBall();
@@ -339,6 +350,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
         if (ball.getBottomY() < playerLeft.getBar().getTopY()
             || ball.getTopY() > playerLeft.getBar().getBottomY()) {
           matchOver(PLAYER.PLAYER_RIGHT); // right wins
+          gameOver = true;
         } else {
           submitStateDelta();
         }
@@ -356,6 +368,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
         stopBallRight = false;
         if (ball.getBottomY() < playerRight.getBar().getTopY()
             || ball.getTopY() > playerRight.getBar().getBottomY()) {
+          gameOver = true;
           matchOver(PLAYER.PLAYER_LEFT); //left wins
         } else {
           submitStateDelta();
@@ -364,6 +377,7 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
     } else {
       stopBallRight = true;
     }
+    return gameOver;
   }
 
   private String getGameState(STATE_KEYS key) {
@@ -378,6 +392,27 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
     final String value = state != null ? state.get(key.toString(), null) : null;
 
     return value == null ? defaultValue : value;
+  }
+
+  /**
+   * Processes ball synchronization between the 2 players to make sure they
+   * remain in sync.
+   */
+  private void handleBallSync() {
+    if (GAME_STATE.ON.equals(getGameState(STATE_KEYS.GAME_STATE))) {
+      // game in progress
+      final String bwl = getGameState(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
+      final String bwr = getGameState(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
+  
+      if (playerLeft == thisPlayer && BALL_WAIT.equals(bwl) && ball.atRightBorder()) {
+        stopBallRight = false;   
+        submitStateDelta(STATE_KEYS.BALL_WAIT_LEFT_PLAYER, "");
+      }
+      if (playerRight == thisPlayer && BALL_WAIT.equals(bwr) && ball.atLeftBorder()) {
+        stopBallLeft = false;
+        submitStateDelta(STATE_KEYS.BALL_WAIT_RIGHT_PLAYER, "");
+      }
+    }
   }
 
   private void handleMatchOver() {
@@ -472,7 +507,6 @@ public class Pongy extends Gadget<UserPreferences> implements NeedsWave {
       setStateDelta(STATE_KEYS.LAST_WINNER, PLAYER.PLAYER_RIGHT.toString());
     }
     submitStateDelta(STATE_KEYS.GAME_STATE, GAME_STATE.END);
-    view.debug("matchOver: whowins=" + whowins);
   }
 
   private void newMatch() {
