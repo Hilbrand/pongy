@@ -40,7 +40,7 @@ public class PongyViewImpl extends Composite implements PongyView {
   private final HTML line;
   private final HTML instructions;
   private final HTML singleLine;
-  private final HTML copy;
+  //private final HTML copy;
   private final Label winner;
   private final int width;
   private final FocusPanel fop;
@@ -55,7 +55,7 @@ public class PongyViewImpl extends Composite implements PongyView {
     pointsPlayerLeftWidget = new Label();
     pointsPlayerRightWidget = new Label();
     line = new HTML("&nbsp;");
-    copy = new HTML();
+    //copy = new HTML();
     winner = new Label();
     fop = new FocusPanel();
     fop.setWidth(width + "px");
@@ -95,12 +95,6 @@ public class PongyViewImpl extends Composite implements PongyView {
     singleLine.setStyleName("singleLine");
     CSS.setProperty(fop, CSS.A.BACKGROUND_COLOR, Color.BLACK);
     RootPanel.get().add(fop);
-  }
-
-  public void debug(String text) {
-//    if (text != null && !"".equals(text)) {
-//      RootPanel.get().add(new InlineHTML(text +", "));
-//    }
   }
 
   public HandlerRegistration addKeyDownHandler(KeyDownHandler handler) {
