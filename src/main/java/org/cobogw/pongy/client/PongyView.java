@@ -23,8 +23,6 @@ import com.google.gwt.event.dom.client.HasKeyUpHandlers;
  */
 public interface PongyView extends HasKeyDownHandlers, HasKeyUpHandlers {
 
-  void debug(String text);
-
   /**
    * Places the ball on the view.
    * 
