@@ -5,4 +5,4 @@ More information on how the game was played <a href="http://playpongy.appspot.co
 
 This project is not maintained anymore.
 
-<img src=http://playpongy.appspot.com/preview.png>
+<img src=war/preview.png>
